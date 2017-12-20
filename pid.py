@@ -28,26 +28,69 @@ class robot():
     '''This is an object for robot simulation.'''
 
     def __init__(self):
-        self.actions  = robot_actions()
-        self.response_time = setpoint(1)
-        self.gaze         = setpoint(0)
-        self.lips         = setpoint(15)
+        actions = {'verbal': ['encourage', 'positive', 'brake'], 'physical': ['encourage', 'positive', 'dance'],
+                   'level': ['decrease', 'stay', 'increase']}
+        # self.actions       = pd.DataFrame.from_dict(actions)
+        self.actions  = actions
+        self.setpoint = {'response_time': 1, 'gaze': 0, 'lips': 30}
+
+        # todo delete old...
+        # self.actions  = robot_actions()
+        # self.response_time = setpoint(1)
+        # self.gaze          = setpoint(0)
+        # self.lips          = setpoint(15)
 
     def analyze_kid_state(self, kp, ki, kd, pv, rt):
         # todo: pv
         # pv_rt, pv_gaze, pv_lips
-        rt_pid   = PID(kp, ki, kd, pv, self.response_time.setpoint, rt)
-        gaze_pid = PID(kp, ki, kd, pv, self.gaze.setpoint, rt)
-        lips_pid = PID(kp, ki, kd, pv, self.lips.setpoint, rt)
+        rt_pid   = PID(kp, ki, kd, np.array(pv.rt), self.setpoint['response_time'], rt)
+        gaze_pid = PID(kp, ki, kd, np.array(pv.gaze), self.setpoint['gaze'], rt)
+        lips_pid = PID(kp, ki, kd, np.array(pv.lips), self.setpoint['lips'], rt)
 
-        return rt_pid * gaze_pid * lips_pid
+        return rt_pid * gaze_pid * lips_pid, rt_pid, gaze_pid, lips_pid
+
+    def prnt_selected_action(self,i,j,k):
+        print 'selecting action', type(i)
+        if type(i) == int:
+            print i
+            print 'verbal = ', self.actions['verbal'][i]
+            print 'physical = ', self.actions['physical'][j]
+            print 'physical = ', self.actions['level'][k]
+        elif type(i) == list:
+            print 'verbal = ', self.actions['verbal'][i[0]], self.actions['verbal'][i[1]]
+            print 'physical = ', self.actions['physical'][j[0]], self.actions['physical'][j[1]]
+
+    def pid_action(self, kid, rt_pid, gaze_pid, lips_pid):
+        if np.abs(gaze_pid) > 45:
+            vp = 2
+            lvl = 1
+        elif np.abs(gaze_pid) <= 45:
+            if kid.right == 1:
+                if lips_pid <= 15: # not happy
+                    if rt_pid <= 2: # fast
+                        vp  = [0,1]
+                        lvl = 2
+                    elif rt_pid > 2: # slow
+                        vp  = [0,1]
+                        lvl = 1
+                elif lips_pid > 15: # happy
+                    if rt_pid <= 2: # fast
+                        vp  = 1
+                        lvl = 2
+                    elif rt_pid > 2: # slow
+                        vp  = 1
+                        lvl = 1
+            elif kid.right == 0:
+                vp = 0
+                lvl = 0
+        self.prnt_selected_action(vp, vp, lvl)
 
 class robot_actions():
     '''This is an object for robot actions.'''
 
     def __init__(self):
         self.verbal = ['encourage', 'positive', 'brake']  # verbal gestures
-        self.physical = ['encourage', 'positive', 'dace']  # physical gestures
+        self.physical = ['encourage', 'positive', 'dance']  # physical gestures
         self.level = [-1, 0, 1]
 
 class setpoint():
@@ -57,13 +100,13 @@ class setpoint():
 
 def PID(kp, ki, kd, pv, sp, rt):
     '''PID calculations'''
-    # https: // codereview.stackexchange.com / questions / 155205 / python - pid - simulator - controller - output
+    # http: // code.activestate.com / recipes / 577231 - discrete - pid - controller /
 
     et = -(pv - sp)
 
     P = et[-1] # PV(t) = et[-1] # propotional
 
-    I = np.sum(et) # integral
+    I = np.nansum(et) # integral
 
     D = (et[-1] - et[-2])/rt # derivative
 
@@ -72,21 +115,31 @@ def PID(kp, ki, kd, pv, sp, rt):
     return pid
 
 
-def simulate_kid_data(path, kid1):
-    temp_val = kid1.__dict__.values()
+def simulate_kid_data(path, kid, robot):
+    temp_max = 0
+    kp, ki, kd = 2, 0.05, 1
+    kid.simulate()
+    # intial state
+    temp_val = kid.__dict__.values()
     temp_val = np.append(temp_val, 0)
     temp_val = np.array(temp_val, 'float')
-    cls_names = kid1.__dict__.keys()
+    cls_names = kid.__dict__.keys()
     cls_names.append('t')
     kid1_df = pd.DataFrame(data=temp_val.reshape(1, 6), columns=cls_names)
     for t in range(1, 100):  # 100 time steps simulation
-        kid1.simulate()
-        temp_val = kid1.__dict__.values()
+        kid.simulate()
+        temp_val = kid.__dict__.values()
         temp_val.append(t)
         temp_val = np.array(temp_val, 'float')
         np.round(temp_val)
         temp_df = pd.DataFrame(data=temp_val.reshape(1, 6), columns=cls_names)
         kid1_df = kid1_df.append(temp_df)
+        pid, rt_pid, gaze_pid, lips_pid = robot.analyze_kid_state(kp, ki, kd, kid1_df, np.float(temp_df.rt))
+        print t, pid, rt_pid, gaze_pid, lips_pid
+        robot.pid_action(kid, rt_pid, gaze_pid, lips_pid)
+        if np.abs(gaze_pid) > temp_max:
+            temp_max = np.abs(gaze_pid)
+        pass
     # response_history =
     kid1_df.to_csv(path)
     return kid1_df
@@ -97,11 +150,11 @@ if __name__ == '__main__':
     kid = kid()
     robot = robot()
     np.random.seed(0) # Reproducing the same randomness each time we run the code.
-
+    simulate_kid_data('kid_data', kid, robot)
     kp, ki, kd = 0.5, 0.5, 0.5
     kid.simulate()
-    a = robot.analyze_kid_state(kp, ki, kd, np.array([0.1,0.2,0.3,0.5,0.6]), 0.2)
-    print a
+    pid, rt_pid, gaze_pid, lips_pid = robot.analyze_kid_state(kp, ki, kd, np.array([0.1,0.2,0.3,0.5,0.6]), 0.2)
+    print pid
 
     # todo: if right -> PID/   If wrong - only one action
     # The PID number differentiate between the 4 cases of being right,
