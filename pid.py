@@ -265,34 +265,35 @@ def simulate_kid_data(path, kid, robot, N, prt = True):
     temp_val = kid.__dict__.values() # taking the values.
     temp_val = np.append(temp_val, 0) # adding 1st step.
     temp_val = np.array(temp_val, 'float') # converting to float.
-    cls_names = kid.__dict__.keys() # taking the names of the fields in kid.
-    cls_names.append('time') # addin 't' to the time column as a name.
-    kid1_df = pd.DataFrame(data=temp_val.reshape(1, 6), columns=cls_names) # create the dataframe
-    cls_names1 = ['rt_pid', 'gaze_pid', 'lips_pid','time']
+    cls_names_kid = kid.__dict__.keys() # taking the names of the fields in kid.
+    cls_names_kid.append('time') # addin 't' to the time column as a name.
+    kid_df = pd.DataFrame(data=temp_val.reshape(1, 6), columns=cls_names_kid) # create the dataframe
+    cls_names_pid = ['rt_pid', 'gaze_pid', 'lips_pid', 'time']
+    cls_names_robot = ['verbal', 'pysical', 'level', 'time']
     # Simulating the interaction.
     for t in range(1, N):  # N time steps simulation
         temp_val = kid.__dict__.values()
         temp_val.append(t)
         temp_val = np.array(temp_val, 'float')
-        temp_df = pd.DataFrame(data=temp_val.reshape(1, 6), columns=cls_names)
-        kid1_df = kid1_df.append(temp_df.round(2))
+        temp_df = pd.DataFrame(data=temp_val.reshape(1, 6), columns=cls_names_kid)
+        kid_df = kid_df.append(temp_df.round(2))
 
         # calculate PID for response time
-        rt_pid   = PID(rt_kp, rt_ki, rt_kd, np.array(kid1_df.rt), robot.setpoint['response_time'], np.float(temp_df.rt))
+        rt_pid   = PID(rt_kp, rt_ki, rt_kd, np.array(kid_df.rt), robot.setpoint['response_time'], np.float(temp_df.rt))
         # calculate PID for gaze
-        gaze_pid = PID(gaze_kp, gaze_ki, gaze_kd, np.array(kid1_df.gaze), robot.setpoint['gaze'], np.float(temp_df.rt))
+        gaze_pid = PID(gaze_kp, gaze_ki, gaze_kd, np.array(kid_df.gaze), robot.setpoint['gaze'], np.float(temp_df.rt))
         # calculate PID for lips
-        lips_pid = PID(lips_kp, lips_ki, lips_kd, np.array(kid1_df.lips), robot.setpoint['lips'], np.float(temp_df.rt))
+        lips_pid = PID(lips_kp, lips_ki, lips_kd, np.array(kid_df.lips), robot.setpoint['lips'], np.float(temp_df.rt))
         pid = {'rt': rt_pid, 'gaze': gaze_pid, 'lips': lips_pid}
 
 
-        temp_robot = np.array([rt_pid, gaze_pid, lips_pid, t])
-        temp_robot = np.array(temp_robot, 'float')  # converting to float.
-        temp_robot = pd.DataFrame(data=temp_robot.reshape(1, 4), columns=cls_names1)
+        temp_pid = np.array([rt_pid, gaze_pid, lips_pid, t])
+        temp_pid = np.array(temp_pid, 'float')  # converting to float.
+        temp_pid = pd.DataFrame(data=temp_pid.reshape(1, 4), columns=cls_names_pid)
         if t == 1:
-            robot_df = pd.DataFrame(data=temp_robot, columns=cls_names1)  # create the dataframe
+            pid_df = pd.DataFrame(data=temp_pid, columns=cls_names_pid)  # create the dataframe
         else:
-            robot_df = robot_df.append(temp_robot)
+            pid_df = pid_df.append(temp_pid)
 
         if prt:
             print 'Iteration = %d' %(t)
@@ -300,17 +301,26 @@ def simulate_kid_data(path, kid, robot, N, prt = True):
             print 'PID: rt = %.2f, gaze = %.2f, lips = %.2f' % (rt_pid, gaze_pid, lips_pid)
 
         # What is the action the robot took based on the PIDs values.
-        vp, _, lvl = robot.pid_action(kid, rt_pid, gaze_pid, lips_pid)
+        vp, p, lvl = robot.pid_action(kid, rt_pid, gaze_pid, lips_pid)
+        temp_robot = np.array([vp, p, lvl, t])
+        temp_robot = np.array(temp_robot, 'float')  # converting to float.
+        temp_robot = pd.DataFrame(data=temp_robot.reshape(1, 4), columns=cls_names_pid)
+        if t == 1:
+            robot_df = pd.DataFrame(data=temp_robot, columns=cls_names_robot)  # create the dataframe
+        else:
+            robot_df = pid_df.append(temp_robot)
         # What is the action the kid took based on the robot actions.
         kid.response2robot(robot, vp, lvl, pid)
     # saving the response history.
-    kid1_df.to_csv(path)
+    kid_df.to_csv(path)
+    pid_df.to_csv(path+'_pid')
     robot_df.to_csv(path+'_robot')
+
     ttl = 'rt_'+str(rt_kp)+'_'+str(rt_ki)+'_'+str(rt_kd)+'__gaze_'+str(gaze_kp)+'_'+str(gaze_ki)+'_'+str(gaze_kd)\
           +'__lips_' + str(lips_kp) + '_' + str(lips_ki) + '_' + str(lips_kd)
-    summary_plot(kid1_df, robot_df, ttl)
+    summary_plot(kid_df, pid_df, ttl)
 
-def summary_plot(kid_df, robot_df, title):
+def summary_plot(kid_df, pid_df, title):
     fig, ax = plt.subplots(1, 2)
     fig.suptitle('ks: '+title, size = 24)
     kid_df.plot(x='time', y=['lips', 'gaze'], legend=True, ax=ax[0])
@@ -322,7 +332,7 @@ def summary_plot(kid_df, robot_df, title):
     ax[0].hlines(robot.setpoint['response_time'], 0, kid_df.time[-1:], linestyles='dashed', color=nclrs._left[0].values())
     ax[0].set_title('KID\'s parameters')
 
-    robot_df.plot(x='time', y=['rt_pid', 'lips_pid', 'gaze_pid'], legend=True, ax=ax[1])
+    pid_df.plot(x='time', y=['rt_pid', 'lips_pid', 'gaze_pid'], legend=True, ax=ax[1])
     ax[1].set_title('PID\'s parameters')
 
     fig.set_size_inches(12, 18)
