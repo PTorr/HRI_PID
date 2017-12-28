@@ -265,7 +265,7 @@ def simulate_kid_data(path, kid, robot, N, prt = True):
     :param N: number of iterations.
     :return: data frame of everything.
     '''
-    krand = .95
+    krand = 1
     # PID parameters for all the PID process that we calculate.
     rt_kp, rt_ki, rt_kd       = 2, 0.05, 0.5
     gaze_kp, gaze_ki, gaze_kd = 2, 0.05, 0.5
