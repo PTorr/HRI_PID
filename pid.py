@@ -265,15 +265,14 @@ def simulate_kid_data(path, kid, robot, N, prt = True):
     :param N: number of iterations.
     :return: data frame of everything.
     '''
-    krand = 1.0
+    krand = .95
     # PID parameters for all the PID process that we calculate.
-    rt_kp, rt_ki, rt_kd       = 1.5, 0, 0.5
-    gaze_kp, gaze_ki, gaze_kd = 1.5, 0, 0.5
-    lips_kp, lips_ki, lips_kd = 1.5, 0, 0.5
+    rt_kp, rt_ki, rt_kd       = 2, 0.05, 0.5
+    gaze_kp, gaze_ki, gaze_kd = 2, 0, 0.5
+    lips_kp, lips_ki, lips_kd = 2, 0, 0.5
 
-    ttl = 'rt_'+str(rt_kp)+'_'+str(rt_ki)+'_'+str(rt_kd)+'__gaze_'+str(gaze_kp)+'_'+str(gaze_ki)+'_'+str(gaze_kd) \
-          +'__lips_' + str(lips_kp) + '_' + str(lips_ki) + '_' + str(lips_kd)
-    ttl = ttl.replace('.','_')
+    ttl = 'rt: '+str(rt_kp)+'/'+str(rt_ki)+'/'+str(rt_kd)+', gaze: '+str(gaze_kp)+'/'+str(gaze_ki)+'/'+str(gaze_kd) \
+          +', lips: ' + str(lips_kp) + '/' + str(lips_ki) + '/' + str(lips_kd) + ', rand: ' + str(krand)
 
     kid.simulate() # intial state
     # Creating the dataframe to save the history of the kid's action.
@@ -375,7 +374,7 @@ def simulate_kid_data(path, kid, robot, N, prt = True):
 
 def summary_plot(kid_df, pid_df, robot_df, title):
     fig, ax = plt.subplots(1, 3)
-    fig.suptitle('ks: '+title, size = 24)
+    fig.suptitle('kp/ki/kd: '+title, size = 24)
     kid_df.plot(x='iteration', y=['rt', 'lips', 'gaze', 'right'], legend=True, ax=ax[0])
     # ax1 = ax[0].twinx()
     # kid_df.plot(x='iteration', y=['rt', 'lips', 'gaze', 'right'], legend=True, ax=ax1)
@@ -392,6 +391,11 @@ def summary_plot(kid_df, pid_df, robot_df, title):
     ax[2].set_title('Robot\'s actions')
 
     fig.set_size_inches(24, 12)
+    title = title.replace('.', '_')
+    title = title.replace('/', '_')
+    title = title.replace(': ', '_')
+    title = title.replace(', ', '_')
+    title += '.png'
     fig.savefig(title, dpi=300, format = 'png')
 
 def save_maxfig(fig, fig_name, transperent = False, frmt='eps', resize=None):
@@ -410,7 +414,7 @@ if __name__ == '__main__':
         # np.random.seed(0) # Reproducing the same randomness each iteration we run the code.
         simulate_kid_data('kid_data', kid, robot, 100, prt = False)
 
-    plt.show()
+    # plt.show()
 
     # todo: unless looking away. wrong & right - one action
 
