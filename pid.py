@@ -268,8 +268,8 @@ def simulate_kid_data(path, kid, robot, N, prt = True):
     krand = .95
     # PID parameters for all the PID process that we calculate.
     rt_kp, rt_ki, rt_kd       = 2, 0.05, 0.5
-    gaze_kp, gaze_ki, gaze_kd = 2, 0, 0.5
-    lips_kp, lips_ki, lips_kd = 2, 0, 0.5
+    gaze_kp, gaze_ki, gaze_kd = 2, 0.05, 0.5
+    lips_kp, lips_ki, lips_kd = 2, 0.05, 0.5
 
     ttl = 'rt: '+str(rt_kp)+'/'+str(rt_ki)+'/'+str(rt_kd)+', gaze: '+str(gaze_kp)+'/'+str(gaze_ki)+'/'+str(gaze_kd) \
           +', lips: ' + str(lips_kp) + '/' + str(lips_ki) + '/' + str(lips_kd) + ', rand: ' + str(krand)
