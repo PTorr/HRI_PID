@@ -2,12 +2,13 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib import style
+import matplotlib.animation as animation
 
 class kid():
     '''This is an object for kid simulation.'''
 
     def __init__(self):
-        self.rt = None # Response time.
+        self.rt = None # Response iteration.
         self.push = 1 # The kid pushed or not.
         self.right = None # Did the kid pushed on the right object?
         self.gaze = None # The kid's gaze direction.
@@ -35,7 +36,7 @@ class kid():
         :param lvl: which level.
         :return: kid's state after responding to the robot's actions.
         '''
-        r = self.rand_true(.9)
+        r = self.rand_true(.95)
         # r = self.rand_true(1)
         if r:
             level = robot.actions['level'][lvl]
@@ -45,13 +46,22 @@ class kid():
                 tribute = robot.actions['physical'][vp[0]][0] + robot.actions['physical'][vp[1]][0]
 
             if tribute == 'dance':
-                pass
+                r = self.rand_true(.9)
+                if r:
+                    self.gaze = 0
+                else:
+                    self.gaze = 30
             else:
                 self.lips  = self.up_lips(robot, level, tribute, pid)
                 self.gaze  = self.up_gaze(robot, level, tribute, pid)
                 self.rt  = self.up_rt(robot, level, tribute, pid)
         else:  # kid respond randomly, 1 in 10.
             self.simulate()
+
+        r = self.rand_true(.2)
+        self.right = 1
+        if r:
+            self.right = 0
 
     def up_lips(self, robot, lvl, trib, pid):
         '''
@@ -85,17 +95,17 @@ class kid():
 
     def up_rt(self, robot, lvl, trib, pid):
         '''
-        update response time based on robot's parameters.
+        update response iteration based on robot's parameters.
         :param robot: robot object.
         :param lvl: robot's level action.
         :param trib: robot's tribute action.
-        :return: response time response robot's action.
+        :return: response iteration response robot's action.
         '''
         action_0 = self.rt
         # response to robot's level action
-        action_1 = self.up_action(pid, action_0, [.5, 5], lvl, ['d', 's', 'i'], [.6, .1, .7], [.6, .5, .4], robot.setpoint['response_time'], kid_action = 'rt')
+        action_1 = self.up_action(pid, action_0, [.5, 5], lvl, ['d', 's', 'i'], [.6, .1, .7], [.6, .5, .4], robot.setpoint['response_iteration'], kid_action = 'rt')
         # response to robot's tribute
-        action_2 = self.up_action(pid, action_0, [.5, 5], trib, ['p', 'e', 'pe'], [.2, .2, .3], [.5, .5, .5], robot.setpoint['response_time'], kid_action = 'rt')
+        action_2 = self.up_action(pid, action_0, [.5, 5], trib, ['p', 'e', 'pe'], [.2, .2, .3], [.5, .5, .5], robot.setpoint['response_iteration'], kid_action = 'rt')
         return np.mean((action_1, action_2))
 
     def up_action(self, pid, action, action_th, rbt_act, act_opt, rbt_act_resp, rbt_act_up, sp, kid_action):
@@ -164,44 +174,44 @@ class robot():
                    'level': ['decrease', 'stay', 'increase']}
         # self.actions       = pd.DataFrame.from_dict(actions)
         self.actions  = actions
-        self.setpoint = {'response_time': 1, 'gaze': 0, 'lips': 15}
+        self.setpoint = {'response_iteration': 1, 'gaze': 0, 'lips': 15}
 
 
     def pid_action(self, kid, rt_pid, gaze_pid, lips_pid):
         '''
         Make action based on PID values.
         :param kid: kid's object.
-        :param rt_pid: response time PID.
+        :param rt_pid: response iteration PID.
         :param gaze_pid: gaze PID.
         :param lips_pid: lips PID.
         :return: vp - which tribute to take.
                  lvl - which level to take.
         '''
-        gaze_th = 0
-        lips_th = 0
-        rt_th = 0
-        if gaze_pid <= gaze_th: # looking away
+        gaze_th = 3
+        lips_th = 5
+        rt_th = 0.5
+        if np.abs(gaze_pid) > gaze_th: # looking away
             vp = 2 # break + dance
             lvl = 1 # stay at the same level
-        elif gaze_pid > gaze_th: # looking at
+        elif np.abs(gaze_pid) <= gaze_th: # looking at
             if kid.right == 1:
-                if lips_pid <= lips_th: # not happy
-                    if rt_pid <= rt_th: # fast
-                        vp  = [0,1]
-                        lvl = 2
-                    elif rt_pid > rt_th: # slow
-                        vp  = [0,1]
-                        lvl = 1
-                elif lips_pid > lips_th: # happy
-                    if rt_pid <= rt_th: # fast
-                        vp  = 1
-                        lvl = 2
-                    elif rt_pid > rt_th: # slow
-                        vp  = 1
-                        lvl = 1
+                if lips_pid > lips_th: # not happy
+                    if np.abs(rt_pid) <= rt_th: # fast
+                        vp  = [0,1] # positive & encouraging
+                        lvl = 2 # increase level
+                    elif np.abs(rt_pid) >= rt_th: # slow
+                        vp  = [0,1] # positive & encouraging
+                        lvl = 1 # stay at the same level
+                elif lips_pid <= lips_th: # happy
+                    if np.abs(rt_pid) <= rt_th: # fast
+                        vp  = 0 # positive
+                        lvl = 2 # increase level
+                    elif np.abs(rt_pid) > rt_th: # slow
+                        vp  = 0 # positive
+                        lvl = 1 # stay at the same level
             elif kid.right == 0:
-                vp = 0
-                lvl = 0
+                vp = 1 # encouraging
+                lvl = 0 # decrease level
         # self.prnt_selected_action(vp, vp, lvl)
         return vp, vp, lvl
 
@@ -257,8 +267,11 @@ def simulate_kid_data(path, kid, robot, N, prt = True):
     '''
     # PID parameters for all the PID process that we calculate.
     rt_kp, rt_ki, rt_kd       = 2, 0, 0
-    gaze_kp, gaze_ki, gaze_kd = 1, 0, 0
+    gaze_kp, gaze_ki, gaze_kd = 2, 0, 0
     lips_kp, lips_ki, lips_kd = 2, 0, 0
+
+    ttl = 'rt_'+str(rt_kp)+'_'+str(rt_ki)+'_'+str(rt_kd)+'__gaze_'+str(gaze_kp)+'_'+str(gaze_ki)+'_'+str(gaze_kd) \
+          +'__lips_' + str(lips_kp) + '_' + str(lips_ki) + '_' + str(lips_kd)
 
     kid.simulate() # intial state
     # Creating the dataframe to save the history of the kid's action.
@@ -266,20 +279,23 @@ def simulate_kid_data(path, kid, robot, N, prt = True):
     temp_val = np.append(temp_val, 0) # adding 1st step.
     temp_val = np.array(temp_val, 'float') # converting to float.
     cls_names_kid = kid.__dict__.keys() # taking the names of the fields in kid.
-    cls_names_kid.append('time') # addin 't' to the time column as a name.
+    cls_names_kid.append('iteration') # addin 't' to the iteration column as a name.
     kid_df = pd.DataFrame(data=temp_val.reshape(1, 6), columns=cls_names_kid) # create the dataframe
-    cls_names_pid = ['rt_pid', 'gaze_pid', 'lips_pid', 'time']
-    cls_names_robot = ['verbal', 'pysical', 'level', 'time']
+    cls_names_pid = ['rt_pid', 'gaze_pid', 'lips_pid', 'iteration']
+    cls_names_robot = ['verbal', 'physical', 'level', 'iteration']
     # Simulating the interaction.
-    for t in range(1, N):  # N time steps simulation
+
+
+    right_counter = 0
+    for t in range(1, N):  # N iteration steps simulation
         temp_val = kid.__dict__.values()
         temp_val.append(t)
         temp_val = np.array(temp_val, 'float')
         temp_df = pd.DataFrame(data=temp_val.reshape(1, 6), columns=cls_names_kid)
         kid_df = kid_df.append(temp_df.round(2))
 
-        # calculate PID for response time
-        rt_pid   = PID(rt_kp, rt_ki, rt_kd, np.array(kid_df.rt), robot.setpoint['response_time'], np.float(temp_df.rt))
+        # calculate PID for response iteration
+        rt_pid   = PID(rt_kp, rt_ki, rt_kd, np.array(kid_df.rt), robot.setpoint['response_iteration'], np.float(temp_df.rt))
         # calculate PID for gaze
         gaze_pid = PID(gaze_kp, gaze_ki, gaze_kd, np.array(kid_df.gaze), robot.setpoint['gaze'], np.float(temp_df.rt))
         # calculate PID for lips
@@ -300,42 +316,80 @@ def simulate_kid_data(path, kid, robot, N, prt = True):
             print 'KID: rt = %.2f, gaze = %.2f, lips = %.2f' % (kid.rt, kid.gaze, kid.lips)
             print 'PID: rt = %.2f, gaze = %.2f, lips = %.2f' % (rt_pid, gaze_pid, lips_pid)
 
-        # What is the action the robot took based on the PIDs values.
-        vp, p, lvl = robot.pid_action(kid, rt_pid, gaze_pid, lips_pid)
-        temp_robot = np.array([vp, p, lvl, t])
-        temp_robot = np.array(temp_robot, 'float')  # converting to float.
-        temp_robot = pd.DataFrame(data=temp_robot.reshape(1, 4), columns=cls_names_pid)
+        if t != 0:
+            if (kid_df.right[-2:].sum == 1): # if the kid wasn't right or wrong twice
+                vp = 0 # do nothing
+                p = 0 # do nothing
+                lvl = 1 # do nothing
+            else:
+                # What is the action the robot took based on the PIDs values.
+                vp, p, lvl = robot.pid_action(kid, rt_pid, gaze_pid, lips_pid)
+
+        vp1 = np.copy(vp)
+        if type(vp) != int:
+            vp1 = 3
+            p = 3
+        temp_robot = np.array([vp1, p, lvl, t])
+        temp_robot = pd.DataFrame(data=temp_robot.reshape(1, 4), columns=cls_names_robot)
         if t == 1:
             robot_df = pd.DataFrame(data=temp_robot, columns=cls_names_robot)  # create the dataframe
         else:
-            robot_df = pid_df.append(temp_robot)
+            robot_df = robot_df.append(temp_robot)
+
         # What is the action the kid took based on the robot actions.
         kid.response2robot(robot, vp, lvl, pid)
+
     # saving the response history.
     kid_df.to_csv(path)
     pid_df.to_csv(path+'_pid')
     robot_df.to_csv(path+'_robot')
 
-    ttl = 'rt_'+str(rt_kp)+'_'+str(rt_ki)+'_'+str(rt_kd)+'__gaze_'+str(gaze_kp)+'_'+str(gaze_ki)+'_'+str(gaze_kd)\
-          +'__lips_' + str(lips_kp) + '_' + str(lips_ki) + '_' + str(lips_kd)
-    summary_plot(kid_df, pid_df, ttl)
+    # Live animation of the data.
+    df1 = kid_df[0:0]
+    df2 = pid_df[0:0]
+    df3 = robot_df[0:0]
+    plt.ion()
+    fig, ax = plt.subplots(1, 3)
+    ax[0].set_title('Kid\'s parameters')
+    ax[1].set_title('Pid\'s parameters')
+    ax[2].set_title('Robot\'s parameters')
+    i = 0
+    while i < len(kid_df):
+        df1 = df1.append(kid_df[i:i + 1])
+        df2 = df2.append(pid_df[i:i + 1])
+        df3 = df3.append(robot_df[i:i + 1])
+        ax[0].clear()
+        ax[1].clear()
+        ax[2].clear()
+        df1.plot(x='iteration', y=['rt', 'lips', 'gaze', 'right'], ax=ax[0])
+        df2.plot(x='iteration', y=['rt_pid', 'lips_pid', 'gaze_pid'], ax=ax[1])
+        df3.plot(x='iteration', y=['verbal', 'physical', 'level'], ax=ax[2])
+        plt.draw()
+        plt.pause(0.1)
+        i += 1
+    plt.show()
 
-def summary_plot(kid_df, pid_df, title):
-    fig, ax = plt.subplots(1, 2)
+    summary_plot(kid_df, pid_df, robot_df, ttl)
+
+def summary_plot(kid_df, pid_df, robot_df, title):
+    fig, ax = plt.subplots(1, 3)
     fig.suptitle('ks: '+title, size = 24)
-    kid_df.plot(x='time', y=['lips', 'gaze'], legend=True, ax=ax[0])
-    ax1 = ax[0].twinx()
-    kid_df.plot(x='time', y=['rt', 'lips', 'gaze'], legend=True, ax=ax1)
+    kid_df.plot(x='iteration', y=['rt', 'lips', 'gaze', 'right'], legend=True, ax=ax[0])
+    # ax1 = ax[0].twinx()
+    # kid_df.plot(x='iteration', y=['rt', 'lips', 'gaze', 'right'], legend=True, ax=ax1)
     nclrs = plt.rcParams['axes.prop_cycle']
-    ax[0].hlines(robot.setpoint['lips'], 0, kid_df.time[-1:], linestyles='dashed', color=nclrs._left[1].values())
-    ax[0].hlines(robot.setpoint['gaze'], 0, kid_df.time[-1:], linestyles='dashed', color=nclrs._left[2].values())
-    ax[0].hlines(robot.setpoint['response_time'], 0, kid_df.time[-1:], linestyles='dashed', color=nclrs._left[0].values())
+    ax[0].hlines(robot.setpoint['lips'], 0, kid_df.iteration[-1:], linestyles='dashed', color=nclrs._left[1].values())
+    ax[0].hlines(robot.setpoint['gaze'], 0, kid_df.iteration[-1:], linestyles='dashed', color=nclrs._left[2].values())
+    ax[0].hlines(robot.setpoint['response_iteration'], 0, kid_df.iteration[-1:], linestyles='dashed', color=nclrs._left[0].values())
     ax[0].set_title('KID\'s parameters')
 
-    pid_df.plot(x='time', y=['rt_pid', 'lips_pid', 'gaze_pid'], legend=True, ax=ax[1])
+    pid_df.plot(x='iteration', y=['rt_pid', 'lips_pid', 'gaze_pid'], legend=True, ax=ax[1])
     ax[1].set_title('PID\'s parameters')
 
-    fig.set_size_inches(12, 18)
+    robot_df.plot(x = 'iteration', y = ['verbal', 'physical', 'level'], legend = True, ax = ax[2])
+    ax[2].set_title('Robot\'s actions')
+
+    fig.set_size_inches(12, 24)
     fig.savefig(title, dpi=300, format = 'png')
 
 def save_maxfig(fig, fig_name, transperent = False, frmt='eps', resize=None):
@@ -351,7 +405,7 @@ if __name__ == '__main__':
     if simulate == 1:
         kid = kid()
         robot = robot()
-        # np.random.seed(0) # Reproducing the same randomness each time we run the code.
+        # np.random.seed(0) # Reproducing the same randomness each iteration we run the code.
         simulate_kid_data('kid_data', kid, robot, 100, prt = False)
 
     plt.show()
