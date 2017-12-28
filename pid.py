@@ -28,7 +28,7 @@ class kid():
         self.lips = np.random.normal(loc = 15, scale = 5) - 0.5*np.random.normal(loc = 0, scale = 10)
         self.right = np.random.randint(2)
 
-    def response2robot(self, robot, vp, lvl, pid):
+    def response2robot(self, robot, vp, lvl, pid , rand = 1):
         '''
         Kid's response to robot's action.
         :param robot: robot class.
@@ -36,8 +36,8 @@ class kid():
         :param lvl: which level.
         :return: kid's state after responding to the robot's actions.
         '''
-        r = self.rand_true(.95)
-        # r = self.rand_true(1)
+        # r = self.rand_true(rand)
+        r = self.rand_true(rand)
         if r:
             level = robot.actions['level'][lvl]
             if type(vp) == int:
@@ -265,13 +265,15 @@ def simulate_kid_data(path, kid, robot, N, prt = True):
     :param N: number of iterations.
     :return: data frame of everything.
     '''
+    krand = 1
     # PID parameters for all the PID process that we calculate.
-    rt_kp, rt_ki, rt_kd       = 2, 0, 0
-    gaze_kp, gaze_ki, gaze_kd = 2, 0, 0
-    lips_kp, lips_ki, lips_kd = 2, 0, 0
+    rt_kp, rt_ki, rt_kd       = 1.5, 0, 0.5
+    gaze_kp, gaze_ki, gaze_kd = 1.5, 0, 0.5
+    lips_kp, lips_ki, lips_kd = 1.5, 0, 0.5
 
     ttl = 'rt_'+str(rt_kp)+'_'+str(rt_ki)+'_'+str(rt_kd)+'__gaze_'+str(gaze_kp)+'_'+str(gaze_ki)+'_'+str(gaze_kd) \
           +'__lips_' + str(lips_kp) + '_' + str(lips_ki) + '_' + str(lips_kd)
+    ttl = ttl.replace('.','_')
 
     kid.simulate() # intial state
     # Creating the dataframe to save the history of the kid's action.
@@ -337,37 +339,37 @@ def simulate_kid_data(path, kid, robot, N, prt = True):
             robot_df = robot_df.append(temp_robot)
 
         # What is the action the kid took based on the robot actions.
-        kid.response2robot(robot, vp, lvl, pid)
+        kid.response2robot(robot, vp, lvl, pid, krand)
 
     # saving the response history.
     kid_df.to_csv(path)
     pid_df.to_csv(path+'_pid')
     robot_df.to_csv(path+'_robot')
 
-    # Live animation of the data.
-    df1 = kid_df[0:0]
-    df2 = pid_df[0:0]
-    df3 = robot_df[0:0]
-    plt.ion()
-    fig, ax = plt.subplots(1, 3)
-    ax[0].set_title('Kid\'s parameters')
-    ax[1].set_title('Pid\'s parameters')
-    ax[2].set_title('Robot\'s parameters')
-    i = 0
-    while i < len(kid_df):
-        df1 = df1.append(kid_df[i:i + 1])
-        df2 = df2.append(pid_df[i:i + 1])
-        df3 = df3.append(robot_df[i:i + 1])
-        ax[0].clear()
-        ax[1].clear()
-        ax[2].clear()
-        df1.plot(x='iteration', y=['rt', 'lips', 'gaze', 'right'], ax=ax[0])
-        df2.plot(x='iteration', y=['rt_pid', 'lips_pid', 'gaze_pid'], ax=ax[1])
-        df3.plot(x='iteration', y=['verbal', 'physical', 'level'], ax=ax[2])
-        plt.draw()
-        plt.pause(0.1)
-        i += 1
-    plt.show()
+    # # Live animation of the data.
+    # df1 = kid_df[0:0]
+    # df2 = pid_df[0:0]
+    # df3 = robot_df[0:0]
+    # plt.ion()
+    # fig, ax = plt.subplots(1, 3)
+    # ax[0].set_title('Kid\'s parameters')
+    # ax[1].set_title('Pid\'s parameters')
+    # ax[2].set_title('Robot\'s parameters')
+    # i = 0
+    # while i < len(kid_df):
+    #     df1 = df1.append(kid_df[i:i + 1])
+    #     df2 = df2.append(pid_df[i:i + 1])
+    #     df3 = df3.append(robot_df[i:i + 1])
+    #     ax[0].clear()
+    #     ax[1].clear()
+    #     ax[2].clear()
+    #     df1.plot(x='iteration', y=['rt', 'lips', 'gaze', 'right'], ax=ax[0])
+    #     df2.plot(x='iteration', y=['rt_pid', 'lips_pid', 'gaze_pid'], ax=ax[1])
+    #     df3.plot(x='iteration', y=['verbal', 'physical', 'level'], ax=ax[2])
+    #     plt.draw()
+    #     plt.pause(0.1)
+    #     i += 1
+    # # plt.show()
 
     summary_plot(kid_df, pid_df, robot_df, ttl)
 
@@ -389,7 +391,7 @@ def summary_plot(kid_df, pid_df, robot_df, title):
     robot_df.plot(x = 'iteration', y = ['verbal', 'physical', 'level'], legend = True, ax = ax[2])
     ax[2].set_title('Robot\'s actions')
 
-    fig.set_size_inches(12, 24)
+    fig.set_size_inches(24, 12)
     fig.savefig(title, dpi=300, format = 'png')
 
 def save_maxfig(fig, fig_name, transperent = False, frmt='eps', resize=None):
