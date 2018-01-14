@@ -19,6 +19,7 @@ t1 = 0
 t2 = 0
 rt_kp, rt_ki, rt_kd = 2, 0.05, 0.5
 level = 0
+right_shape = 0
 
 shapes = ['circle','triangle', 'square']
 colors = ['red','yellow', 'blue']
@@ -49,6 +50,8 @@ def helloCallBack(shape_clicked , kid_df):
    # todo: nao do vp atribute and level
    nao_do(vp, level)
 
+   right_shape = nao_say(level)
+
    print('response time: ', np.round(rt,2), np.round(rt_pid,2))
    print('robot actions: ', vp, level)
 
@@ -59,7 +62,7 @@ def Start_callback(number, textWidget):
 
    t1 = 0
    t1 = t.timer()
-   textWidget.insert(END, "Game starting\n Good Luck!")
+   textWidget.insert(END, "Game starting\n Good Luck!\n")
 
 # B = Tkinter.Button(top, text ="Hello", command = helloCallBack)
 
@@ -73,7 +76,7 @@ px = 30
 
 kid_df = pd.DataFrame(data=np.zeros([1,2]), columns=['right','rt'])
 
-textWidget = Text(root, width=20, height =1, pady=20)
+textWidget = Text(root, width=20, height =5, pady=2)
 
 textWidget.grid(row=2, column=2)
 root.grid_rowconfigure(0, weight=1)
@@ -102,13 +105,13 @@ print('welcome to our game')
 
 # nao says hello
 
-def nao_say(atribue, level):
-   i=0
+def nao_say(level):
+   i=np.random.randint(1,4)
    if level == 0:
       nao_says = 'can you show me the shape with color' + objects.color[i]
    if level == 1:
       nao_says = 'can you show me the' + objects.shape[i] + 'shape'
-
+   return i
 
 def nao_do(atribute, level):
    pass
