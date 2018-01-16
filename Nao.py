@@ -1,16 +1,20 @@
-from tkinter import *
-from tkinter import messagebox as tkMessageBox
-import numpy as np
+import sys
+if sys.version_info[0] > 2:
+   from tkinter import *
+   from tkinter import messagebox as tkMessageBox
+else:
+   from Tkinter import *
+   import tkMessageBox
+   from PIL import Image
 
-# from Tkinter import *
-# import tkMessageBox
-# from PIL import Image
-# from resizeimage import resizeimage
+import numpy as np
 import timeit
-# import numpy as np
-import nao_pid
 import pandas as pd
 
+import nao_pid
+from nao_example import init_nao
+tts, managerProxy = init_nao()
+tts.setParameter("speed", 85)
 
 root = Tk()
 root.geometry('{}x{}'.format(600, 400))
@@ -26,14 +30,30 @@ colors = ['red','yellow', 'blue']
 objects = pd.DataFrame(data = np.array([shapes,colors]).T, columns=['shape','color'])
 
 
+def nao_say(level):
+   i=np.random.randint(0,3)
+   if level == 0:
+      nao_says = 'can you show me the shape with the' + objects.color[i] +' color'
+   if level == 1:
+      nao_says = 'can you show me the,' + objects.shape[i] + ', shape'
+   tts.post.say(nao_says)
+   return i+1
+
+def nao_do(atribute, level):
+   pass
+
 def helloCallBack(shape_clicked , kid_df):
    global t1, t2, right_shape, level
+   print(right_shape, shape_clicked)
    # tkMessageBox.showinfo( "Hello Python", "Hello World")
    t2 = t.timer()
    rt = t2-t1 # response time
 
    s = shape_clicked - right_shape # right/ wrong = 0/1
-
+   if s == 0:
+      tts.post.say('you are right')
+   else:
+      tts.post.say('you are wrong')
    # PID
    robot = nao_pid.robot()
 
@@ -45,12 +65,21 @@ def helloCallBack(shape_clicked , kid_df):
    rt_pid = nao_pid.PID(rt_kp, rt_ki, rt_kd, np.array(kid_df.rt), robot.setpoint['response_time'], np.float(temp_df.rt))
    vp, lvl = robot.pid_action(s, rt_pid)
    level += lvl
-   t1 = t.timer()
+   if level < 0:
+      level = 0
+   elif level > 1:
+      level = 1
+       # todo: good job, game over.
 
    # todo: nao do vp atribute and level
-   nao_do(vp, level)
+   # nao_do(vp, level)
 
    right_shape = nao_say(level)
+   t1 = t.timer()
+
+   # shape_clicked = 9
+   # while shape_clicked == 9:
+   #    print('a')
 
    print('response time: ', np.round(rt,2), np.round(rt_pid,2))
    print('robot actions: ', vp, level)
@@ -58,7 +87,12 @@ def helloCallBack(shape_clicked , kid_df):
 
 def Start_callback(number, textWidget):
    global t1, right_shape
-   # nao says: .... todo: connect nao
+   tts.setParameter("speed", 85)
+   tts.setParameter("pitchShift", 1.15)
+   # tts.post.say("Hi my name is Who!")
+   # tts.post.say("Today we are going to play together.")
+   # tts.post.say("Lets begin! Good Luck!")
+
 
    t1 = 0
    t1 = t.timer()
@@ -97,24 +131,12 @@ b4.grid(row=1, column=2, padx = px, columnspan = 2)
 
 
 root.geometry('600x400')
-# B.pack()
+root.after(1000)
 root.mainloop()
-
-print('welcome to our game')
-
 
 # nao says hello
 
-def nao_say(level):
-   i=np.random.randint(1,4)
-   if level == 0:
-      nao_says = 'can you show me the shape with color' + objects.color[i]
-   if level == 1:
-      nao_says = 'can you show me the' + objects.shape[i] + 'shape'
-   return i
 
-def nao_do(atribute, level):
-   pass
 # chose color or shape as A
 # text2speach: can you show me the A shape
 # Timer
@@ -123,4 +145,6 @@ def nao_do(atribute, level):
 # take Timer to PID
 # robot response
 
-
+#
+# if __name__ == '__main__':
+#
