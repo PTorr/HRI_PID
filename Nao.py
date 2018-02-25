@@ -80,16 +80,20 @@ def nao_do(atribute):
     i=np.random.randint(0,3)
     at = actions['verbal'][atribute]
 
+    textWidget.insert('1.0','\n')
     if at == 'encourage':
         # tts.post.say(e[i])
+        textWidget.insert('1.0', [at,e[i]])
         managerProxy.post.runBehavior(e[i])
-        print(at, e[i])
     elif at == 'positive':
+        textWidget.insert('1.0', [at,p[i]])
         managerProxy.post.runBehavior(p[i])
         print(at, p[i])
     elif at == 'dance':
+        textWidget.insert('1.0', [at,'dance_move'])
         managerProxy.post.runBehavior('dance_move')
         print(at, 'dance_move')
+
 
 
 def helloCallBack(shape_clicked):
@@ -133,7 +137,7 @@ def helloCallBack(shape_clicked):
           exit()
 
     nao_do(vp) # nao reaction
-    st = 2.5
+    st = 5
     if vp == 2:
         st = 8
     sleep(st)
@@ -151,9 +155,9 @@ def Start_callback(textWidget):
     global t1, right_shape
     tts.setParameter("speed", 85)
     tts.setParameter("pitchShift", 1.15)
-    # tts.post.say("Hi my name is Who!")
-    # tts.post.say("Today we are going to play together.")
-    # tts.post.say("Lets begin! Good Luck!")
+    tts.post.say("Hi my name is Who!")
+    tts.post.say("Today we are going to play together.")
+    tts.post.say("Lets begin! Good Luck!")
 
 
     t1 = 0
@@ -162,9 +166,9 @@ def Start_callback(textWidget):
     right_shape = nao_say(0)
     t1 = t.timer()
 
-textWidget = Text(root, width=20, height =5, pady=2)
+textWidget = Text(root, width=40, height =5, pady=2)
 
-textWidget.grid(row=2, column=2)
+textWidget.grid(row=2, columnspan=7)
 root.grid_rowconfigure(0, weight=1)
 root.grid_columnconfigure(0, weight=1)
 
