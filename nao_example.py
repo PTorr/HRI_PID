@@ -1,5 +1,6 @@
+from naoqi import ALProxy
+
 def init_nao():
-    from naoqi import ALProxy
 
     IP = '192.168.0.100'
     PORT=9559
@@ -24,5 +25,7 @@ if __name__ == '__main__':
     tts.setParameter("speed", 85)
     tts.post.say("Hi there")
 
-
-    managerProxy.post.runBehavior('Tai_Chi_Chuan')
+    IP = '192.168.0.103'
+    PORT=9559
+    managerProxy.post.runBehavior('dance_move')
+    print managerProxy.getBehaviorNames()

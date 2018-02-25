@@ -9,7 +9,7 @@ class robot():
     '''This is an object for robot simulation.'''
 
     def __init__(self):
-        actions = {'verbal': ['encourage', 'positive', 'brake'], 'physical': ['encourage', 'positive', 'dance'],
+        actions = {'verbal': ['encourage', 'positive', 'dance'], 'physical': ['encourage', 'positive', 'dance'],
                    'level': ['decrease', 'stay', 'increase']}
         # self.actions       = pd.DataFrame.from_dict(actions)
         self.actions  = actions
@@ -23,21 +23,21 @@ class robot():
         :return: vp - which tribute to take.
                  lvl - which level to take.
         '''
-        rt_th = 0.5
-        rt_max = 4
+        rt_th = 17
+        rt_max = 25
         if np.abs(rt_pid) > rt_max: # looking away
             vp = 2 # break + dance
             lvl = 0 # stay at the same level
         elif np.abs(rt_pid) <= rt_max: # looking at
             if right == 0:
-                if np.abs(rt_pid) <= rt_th: # fast
+                if np.abs(rt_pid) <= rt_th: # good response time
                     vp  = 1 # positive
                     lvl = 1 # increase level
-                elif np.abs(rt_pid) >= rt_th: # slow
+                elif np.abs(rt_pid) >= rt_th: # bad response time
                     vp  = 0 # encouraging
                     lvl = 0 # stay at the same level
             elif right != 0:
-                vp = 1 # encouraging
+                vp = 0 # encouraging
                 lvl = -1 # decrease level
         return vp, lvl
 
